@@ -1,9 +1,10 @@
 import cv2
+from PIL import Image
+import time
+import numpy as np
+import logging
 
 class Camera:
-    def __init__(self):
-        self.camera = None
-
     def connect_to_camera(self):        
         """ Connect to the camera based on the specified camera type.
         Raises:
@@ -19,6 +20,7 @@ class Camera:
                 pass
             self.camera = None
             raise Exception("Failed to open OpenCV camera.")
+        logging.info(f"connected to camera {self.camera.getBackendName()}")
         return self.camera
     
     def capture_image(self):
@@ -31,4 +33,5 @@ class Camera:
         ret, frame = self.camera.read()
         if not ret:
             raise Exception("Failed to capture image from OpenCV camera.")
+        logging.info(f"Image captured")
         return frame
