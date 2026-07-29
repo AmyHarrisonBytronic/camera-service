@@ -12,6 +12,9 @@ import numpy as np
 
 CTI_CANDIDATES = [
     Path(os.environ["GIGE_CTI"]) if os.environ.get("GIGE_CTI") else None,
+    Path("/opt/baumer-gapi-sdk-cpp/lib/libbgapi2_gige.cti"),
+    Path("/opt/baumer-gapi-sdk-cpp/lib/libbgapi2_usb.cti"),
+
     Path(r"C:\Program Files (x86)\Optotune AG\Optotune cockpit\Resources\GenICamCtiFiles\bgapi2_gige.cti"),
     Path(r"C:\Program Files\Baumer\Baumer GAPI SDK\bin\bgapi2_gige.cti"),
     Path(r"C:\Program Files\Lucid Vision Labs\Arena SDK\x64Release\GenTL_LUCID_v140.cti"),

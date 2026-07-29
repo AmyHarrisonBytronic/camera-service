@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import argparse
+import signal
 from sys import getsizeof
 from queue import Empty, Queue
 from threading import Event, Thread
@@ -44,6 +45,7 @@ def load_runtime_config(config_path: str | None = None) -> dict:
     archive_directory = Path(loadConfig.return_config_value("archiving.archive_directory"))
     logging_file = f'./logs/{camera_type}_worker{time.strftime("%Y%m%d")}.log'
     buffer_size = loadConfig.get_section("camera_settings").get("buffer_size")
+    capture_timeout_ms = int(loadConfig.get_section("camera_settings").get("capture_timeout_ms", 1000))
     is_archived = str(loadConfig.return_config_value("archiving.is_archived")).lower() == "true"
     archive_params = loadConfig.return_config_value("archiving.archive_parameters")
 
@@ -60,6 +62,7 @@ def load_runtime_config(config_path: str | None = None) -> dict:
         "archive_directory": archive_directory,
         "logging_file": logging_file,
         "buffer_size": buffer_size,
+        "capture_timeout_ms": capture_timeout_ms,
         "is_archived": is_archived,
         "archive_params": archive_params,
     }
@@ -114,6 +117,7 @@ def main(config_path: str | None = None) -> int:
     trigger_type = cfg["trigger_type"]
     archive_directory = cfg["archive_directory"]
     logging_file = cfg["logging_file"]
+    capture_timeout_ms = cfg["capture_timeout_ms"]
     is_archived = cfg["is_archived"]
     archive_params = cfg["archive_params"]
 
@@ -136,9 +140,17 @@ def main(config_path: str | None = None) -> int:
     client = MQTTClient(config)
     client.connect()
 
-    event_queue = Queue()
+    # Latest-only queue: prevents long latency spikes from stale trigger backlog.
+    event_queue = Queue(maxsize=1)
     stop_event = Event()
     exit_code = 0
+
+    def _request_shutdown(signum, _frame):
+        logging.info("Received signal %s; requesting shutdown.", signum)
+        stop_event.set()
+
+    signal.signal(signal.SIGINT, _request_shutdown)
+    signal.signal(signal.SIGTERM, _request_shutdown)
 
     # GigE: hardware | software | continuous. LJS/others: external | internal.
     # internal/software → MQTT + capture_image; external/hardware → frame thread.
@@ -162,7 +174,7 @@ def main(config_path: str | None = None) -> int:
     
     time.sleep(0.1)
     try:
-        while True:
+        while not stop_event.is_set():
             
             try:
                 msg = event_queue.get(timeout = 1.0)
@@ -184,7 +196,11 @@ def main(config_path: str | None = None) -> int:
 
             logging.info("Capturing image...")
             if not is_external_trigger:
-                image = camera.capture_image()
+                try:
+                    image = camera.capture_image(timeout_ms=capture_timeout_ms)
+                except Exception as e:
+                    logging.error("Capture failed; skipping trigger: %s", e, exc_info=True)
+                    continue
             else:
                 if not isinstance(msg, np.ndarray):
                     logging.error("Expected image frame from queue, got %s", type(msg))

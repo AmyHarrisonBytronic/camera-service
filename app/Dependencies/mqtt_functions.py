@@ -1,6 +1,6 @@
 from threading import Event, Thread
 from mqtt_client import MQTTClient, MQTTConfig
-from queue import Queue
+from queue import Empty, Full, Queue
 
 def start_subscribe_thread(
         ip: str, 
@@ -33,8 +33,19 @@ def subscribe_listener(
     def on_message(topic: str, payload: str) -> None:
         # Handler signature used by mqtt_client.MQTTClient.subscribe
         decoded = payload
-        #logging.log(f"Capture request received: {trigger_topic}")
-        result_queue.put(decoded)
+        # Keep only the newest trigger to avoid replaying stale backlog bursts.
+        try:
+            result_queue.put_nowait(decoded)
+        except Full:
+            try:
+                result_queue.get_nowait()
+            except Empty:
+                pass
+            try:
+                result_queue.put_nowait(decoded)
+            except Full:
+                # Another message won the race; skip this stale one.
+                pass
 
     client.subscribe(trigger_topic, on_message)
     stop_event.wait()
