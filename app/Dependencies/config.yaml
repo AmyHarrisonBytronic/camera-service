@@ -1,64 +1,24 @@
-# camera-worker -- TMA site.
-#
-# Ported from the old single-process deployment: jetson-old/configs.yaml
-# (the `cameras: 0:` block) plus jetson-old/cameras/pylon.py, which is where
-# the settings that actually reached the camera were hardcoded.
-#
-# Hardware: Basler ace 2 a2A4200-12gcBAS (4200x2160 colour GigE), serial
-# 40641303, identified from jetson-old/logs/image_20250611.log.
-
-# MQTT ------------------------------------------------------------------
-# The `tma/` namespace is deliberate: it matches inference-worker. The old
-# deployment had NO MQTT at all (it passed JPEGs through /tmp and flat files),
-# so there is no legacy topic scheme to inherit.
 ip: localhost
 port: 1883
 trigger_topic: "tma/inference/trigger"
-# NOTE: main.py rewrites "/camera/" -> "/camera_{camera_id}/" when camera_id is
-# set, so the topic actually published is tma/camera_0/image. inference-worker's
-# listen_topic must match that rewritten form.
 image_topic: "tma/camera/image"
 trigger_time_topic: "tma/camera/trigger_time"
 message: null
 
 camera:
-  camera_type: pylon              # jetson-old/configs.yaml:5
-  camera_id: 0                    # jetson-old/configs.yaml:3  (cameras: 0:)
-  serial_number: "40641303"       # jetson-old/configs.yaml:14
+  camera_type: gige
+  camera_ip: 192.168.2.10
+  serial_number: 25165090
 
 camera_settings:
-  # jetson-old/cameras/pylon.py:88  MaxNumBuffer = 15.
-  # NOT configs.yaml's buffer_size: 30 -- that was the application-level ring
-  # buffer, used only in hardware-trigger mode, which was disabled.
-  buffer_size: 15
-
-  # The following reached the camera in the old deployment but CANNOT be
-  # expressed here yet: cameras_pylon.py:67-70 _apply_camera_settings is an
-  # explicit no-op. Recorded so the intent is not lost if it gains an
-  # implementation. Values confirmed in every log line to 2026-07-06 14:39:15.
-  #   exposure_time_us: 2000      # pylon.py:72   ExposureTime.SetValue(2000)
-  #   acquisition_frame_rate: 3.0 # pylon.py:79-81 AcquisitionFrameRate 3.0
-  #   grab_strategy: LatestImageOnly  # pylon.py:161 (new code uses OneByOne)
-  #   retrieve_timeout_ms: 1000   # pylon.py:187   (new code uses 5000)
-
+  pixel_format: BayerRG8
 trigger:
-  # external | hardware -> free-running frame thread
-  # internal | software -> MQTT trigger + capture_image
-  #
-  # old-jetson ran free-running (use_hardware_trigger: false, camera pushing at
-  # 3 fps). `internal` is used here because inference-worker's loop is
-  # request/response: it publishes to publish_camera_topic and then blocks
-  # waiting for the image. This is an architecture change from old-jetson, not
-  # a faithful port of it.
-  trigger_type: internal
+  trigger_type: software
 
 archiving:
-  is_archived: "true"             # jetson-old/configs.yaml:12 save_original_images
-  archive_directory: "TMA"        # jetson-old/configs.yaml:13 './TMA'
+  is_archived: "true"
+  archive_directory: "save_dir"
   archive_parameters:
-    # WARNING: old-jetson throttled archiving to one image per 60 s
-    # (image_main.py:114). This archiver has no throttle -- archive_freq only
-    # selects the subfolder granularity. Every frame will be written.
     archive_freq: "daily"
-    archive_storage: 50           # GB  (not yet implemented)
-    archive_days: 30              # days (not yet implemented)
+    archive_storage: 50 # GB
+    archive_days: 30 # days

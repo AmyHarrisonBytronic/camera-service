@@ -18,8 +18,10 @@ def _archive_save_dir(directory, archive_params: dict, camera_id=None) -> str | 
         logging.error("no directory specified")
         return None
     base_directory = os.fspath(directory)
-    if not os.path.exists(base_directory):
-        logging.error(f"the provided directory {directory} could not be found")
+    try:
+        os.makedirs(base_directory, exist_ok=True)
+    except Exception as e:
+        logging.error(f"failed to create base archive directory {directory}: {e}")
         return None
 
     subfolder = None
