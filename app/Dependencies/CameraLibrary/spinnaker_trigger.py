@@ -7,7 +7,7 @@ from typing import Optional
 
 import PySpin
 
-from Dependencies.CameraLibrary.hardware_trigger import HardwareTriggerConfig
+from dependencies.CameraLibrary.hardware_trigger import HardwareTriggerConfig
 
 logger = logging.getLogger(__name__)
 
