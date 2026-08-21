@@ -265,4 +265,4 @@ if __name__ == "__main__":
         help="Path to YAML config file (defaults to app/dependencies/config.yaml)",
     )
     args = parser.parse_args()
-    raise SystemExit(main(config_path=args.config))4
+    raise SystemExit(main(config_path=args.config))
