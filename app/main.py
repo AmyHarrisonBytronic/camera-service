@@ -217,11 +217,10 @@ def main(config_path: str | None = None) -> int:
                 archive_filename = f"cam{camera_id or '0'}_{camera_type}_{timestamp}"
                 archive_image(image, archive_directory, archive_filename, archive_params, camera_id)
 
-            image_bytes = base64.b64encode(image).decode()
-            packet = {
-                "image": image_bytes,
-                "date": date_time
-            }
+            image_bytes = encode_image_to_bytes(image)
+            packet = {}
+            packet["image"] = base64.b64encode(image_bytes).decode("ascii")
+            packet["date_time"] = date_time.decode("utf-8")
 
             logging.info(f"Publishing image... of size {getsizeof(image_bytes)}")
 
