@@ -1,8 +1,8 @@
 ip: localhost
 port: 1883
-trigger_topic: "tma/inference/trigger"
-image_topic: "tma/camera/image"
-trigger_time_topic: "tma/camera/trigger_time"
+trigger_topic: "test/camera/trigger"
+image_topic: "test/image/colour_image"
+trigger_time_topic: "test/image/trigger_time"
 message: null
 
 camera:
