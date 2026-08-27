@@ -17,6 +17,6 @@ pytest test
 
 ## Recommended next steps
 
-- Add tests for configuration loading in `app/Dependencies/loadConfig.py`.
+- Add tests for configuration loading in `app/dependencies/loadConfig.py`.
 - Add tests for camera selection and message handling.
 - Add integration tests for MQTT publish/subscribe behavior.
