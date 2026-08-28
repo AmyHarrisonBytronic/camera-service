@@ -32,19 +32,16 @@ class DummyCamera(Camera):
         for root, dirs, files in os.walk(directory_path):
             for file in files:
                 if file.endswith(extension):
-                    frame_path_list.append(os.path.join(root, file))
-                    
-        for path in frame_path_list:
-            self.frame_list = cv2.imread(path)
+                    self.frame_list.append(os.path.join(root, file))
     
-    def capture_image(self):
+    def capture_image(self, timeout_ms):
         """Returns a random frame from the current frame list.
         Returns:
             numpy.ndarray: The captured image.
         Raises:
             Exception: If the camera type is unsupported or if image capture fails."""
         
-        return self.frame_list[randint(0, len(self.frame_list)-1)]
+        return cv2.imread(self.frame_list[randint(0, len(self.frame_list)-1)])
 
     def disconnect_camera(self, camera=None) -> None:
         """Release the OpenCV capture. Subclasses typically override this."""
