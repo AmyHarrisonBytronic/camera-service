@@ -1,7 +1,7 @@
 ip: localhost
 port: 1883
 trigger_topic: "test/camera/trigger"
-image_topic: "test/image/colour_image"
+image_topic: "test/camera/colour_image"
 trigger_time_topic: "test/image/trigger_time"
 message: null
 
