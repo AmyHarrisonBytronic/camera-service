@@ -18,7 +18,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from Dependencies import loadConfig
+from dependencies import loadConfig
 
 from . import settings_ljs
 from .cameras import CameraHeightMap

@@ -9,13 +9,13 @@ The `app` package launches the MQTT-based camera worker and manages the capture 
 ## Main entrypoint
 
 - `app/main.py` is the primary script.
-- It loads configuration values from `app/Dependencies/config.yaml`.
+- It loads configuration values from `app/dependencies/config.yaml`.
 - It initializes the requested camera implementation and connects to the MQTT broker.
 - It listens for trigger messages and publishes captured images to the configured image topic.
 
 ## Configuration
 
-The app uses `app/Dependencies/loadConfig.py` to read YAML values from `app/Dependencies/config.yaml`.
+The app uses `app/dependencies/loadConfig.py` to read YAML values from `app/dependencies/config.yaml`.
 
 Required config keys:
 

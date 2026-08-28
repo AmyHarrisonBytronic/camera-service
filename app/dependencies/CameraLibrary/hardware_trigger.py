@@ -15,7 +15,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from Dependencies import loadConfig
+from dependencies import loadConfig
 
 logger = logging.getLogger(__name__)
 

@@ -28,7 +28,7 @@ class Camera:
         logging.info(f"connected to camera {self.camera.getBackendName()}")
         return self.camera
     
-    def capture_image(self):
+    def capture_image(self, timeout_ms=0):
         """Capture an image from the camera and return it as a numpy array.
         Returns:
             numpy.ndarray: The captured image.

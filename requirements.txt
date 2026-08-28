@@ -1,0 +1,19 @@
+# The MQTT client ships as a wheel in app/dependencies/ - main.py imports it
+# at module level, so it must be installed for the service to start at all.
+./app/dependencies/mqtt_client-1.0.0-py3-none-any.whl
+
+numpy==1.26.4
+# headless build: this service never calls imshow/waitKey, and plain
+# opencv-python needs libGL.so.1, which no CI runner or container has.
+opencv-python-headless==4.11.0.86
+paho-mqtt==2.1.0
+pillow==12.2.0
+pypylon==26.5.0
+harvesters==1.4.3
+PyYAML==6.0.3
+
+# FLIR cameras additionally need PySpin, which ships only as a Windows
+# wheel (app/dependencies/spinnaker_python-...-win_amd64.whl). It is not
+# listed here because there is no Linux build; install it by hand on FLIR
+# machines. cameras_flir.py is imported lazily, so other camera types are
+# unaffected.

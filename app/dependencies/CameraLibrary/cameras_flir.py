@@ -1,11 +1,11 @@
-from Dependencies.CameraLibrary.cameras import Camera
-from Dependencies.CameraLibrary.hardware_trigger import (
+from dependencies.CameraLibrary.cameras import Camera
+from dependencies.CameraLibrary.hardware_trigger import (
     HardwareTriggerConfig,
     is_camera_loss_error,
     report_camera_loss,
     wait_for_gpio_edge_frames,
 )
-from Dependencies.CameraLibrary.spinnaker_trigger import SpinnakerHardwareTrigger
+from dependencies.CameraLibrary.spinnaker_trigger import SpinnakerHardwareTrigger
 import PySpin
 import logging
 import time
@@ -69,7 +69,7 @@ class FlirCamera(Camera):
         Mono16 is accepted but bits 14–15 must be masked (always 1 on AX5).
         """
         try:
-            from Dependencies import loadConfig
+            from dependencies import loadConfig
 
             cfg = loadConfig.get_section("camera_settings")
             pixel_format = str(cfg.get("pixel_format", "Mono14"))
@@ -113,7 +113,7 @@ class FlirCamera(Camera):
         self.cam = None
 
         try:
-            from Dependencies import loadConfig
+            from dependencies import loadConfig
 
             serial = str(loadConfig.return_config_value("camera.serial_number") or "").strip()
         except Exception:

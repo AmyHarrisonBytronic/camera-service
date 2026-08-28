@@ -1,5 +1,5 @@
-from numpy import ndarray, uint8
-from cv2 import imencode, normalize, NORM_MINMAX, CV_8U
+from numpy import frombuffer, ndarray, uint8
+from cv2 import imencode, imdecode, normalize, IMREAD_UNCHANGED, NORM_MINMAX, CV_8U
 from time import localtime, strftime
 
 
@@ -35,3 +35,18 @@ def encode_date_time_to_bytes() -> bytes:
     """Encode the current date and time into bytes."""
     date_time = strftime("%Y-%m-%d %H:%M:%S", localtime())
     return date_time.encode("utf-8")
+
+def decode_image_from_bytes(data: bytes) -> ndarray:
+    '''decodes an image stored in bytes into an ndarray
+    Args:
+        data: a byte string representing the image
+    Returns:
+        image: an ndarray representing the image
+    '''
+    if not data:
+        raise ValueError("Empty image bytes.")
+
+    image = imdecode(frombuffer(data, uint8), IMREAD_UNCHANGED)
+    if image is None:
+        raise ValueError("Could not decode image bytes.")
+    return image

@@ -1,6 +1,6 @@
 from harvesters.core import Harvester
-from Dependencies.CameraLibrary.cameras import Camera
-from Dependencies import loadConfig
+from dependencies.CameraLibrary.cameras import Camera
+from dependencies import loadConfig
 from queue import Queue
 from threading import Event
 import logging

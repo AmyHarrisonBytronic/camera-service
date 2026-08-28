@@ -1,14 +1,12 @@
 ip: localhost
 port: 1883
-trigger_topic: "tma/inference/trigger"
-image_topic: "tma/camera/image"
-trigger_time_topic: "tma/camera/trigger_time"
+trigger_topic: "test/camera/trigger"
+image_topic: "test/camera/colour_image"
+trigger_time_topic: "test/image/trigger_time"
 message: null
 
 camera:
-  camera_type: gige
-  camera_ip: 192.168.2.10
-  serial_number: 25165090
+  camera_type: opencv
 
 camera_settings:
   pixel_format: BayerRG8
