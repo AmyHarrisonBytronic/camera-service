@@ -74,6 +74,9 @@ def set_camera_class(camera_type: str):
     
     if camera_type == "opencv":
         camera = Camera()
+    elif camera_type == "file":
+        from dependencies.CameraLibrary.cameras_dummy import DummyCamera
+        camera = DummyCamera()
     elif camera_type == "pylon":
         from dependencies.CameraLibrary.cameras_pylon import PylonCamera
         camera = PylonCamera()

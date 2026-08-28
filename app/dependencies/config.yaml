@@ -1,17 +1,17 @@
 ip: localhost
 port: 1883
-trigger_topic: "test/camera/trigger"
+trigger_topic: "test/hmi/instruction"
 image_topic: "test/image/colour_image"
 trigger_time_topic: "test/image/trigger_time"
 message: null
 
 camera:
   camera_type: opencv
-
 camera_settings:
   pixel_format: BayerRG8
 trigger:
   trigger_type: software
+dummy_location: "/test/41"
 
 archiving:
   is_archived: "true"
