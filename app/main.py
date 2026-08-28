@@ -9,7 +9,6 @@ from threading import Event, Thread
 import numpy as np
 from pathlib import Path
 import base64
-from cv2 import imread
 
 from dependencies import loadConfig
 from dependencies.CameraLibrary.cameras import Camera

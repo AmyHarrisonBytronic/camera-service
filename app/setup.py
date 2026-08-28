@@ -15,7 +15,7 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parent
 ROOT = APP_DIR.parent
 VENV_DIR = ROOT / ".venv"
-REQUIREMENTS = APP_DIR / "Dependencies" / "requirements.txt"
+REQUIREMENTS = ROOT / "requirements.txt"
 
 
 def venv_python(venv_dir: Path) -> Path:

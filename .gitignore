@@ -1,10 +1,42 @@
-*__pycache__
+# Python
 *.pyc
-*.log
-*archive
+__pycache__/
+*.egg-info/
+
+# Virtualenvs. service-orchestrator expects one per service at <repo>/.venv
 .venv/
+venv/
+
+# Config written into this repo's root by service-orchestrator at startup.
+# Never commit these: a stale copy would overwrite a live deployment config.
+/config.yaml
+/config-*.yaml
+
+# Captured and archived imagery
 *.png
 *.jpg
+*archive
 save_dir/
 persist.json
+
+# Test output
+junit/
+.pytest_cache/
+.ruff_cache/
+
+# act run byproducts (docker-local/run.sh)
+docker-local/logs/
+docker-local/artifacts/
+
+# Working notes, not for the remote
+docs/superpowers/
+
+# Editors / OS
+.vscode/
+.idea/
+.claude/
 CLAUDE.md
+.DS_Store
+
+# Logs
+*.log
