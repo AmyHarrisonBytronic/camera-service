@@ -47,9 +47,7 @@ jobs:
 
           # Install the local wheel files and the CameraLibrary package.
           install-deps-command: >-
-            uv pip install
-            ./dependencies/*.whl
-            -e ./dependencies
+            uv pip install -r ./requirements.txt
 
           # Make sure the YAML configuration files and Python package
           # resources are included in the generated binary.
