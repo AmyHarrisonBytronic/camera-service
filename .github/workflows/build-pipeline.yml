@@ -42,7 +42,7 @@ jobs:
         with:
           scripts: ".app/main.py"
 
-          output-dir: "./dist/${{ matrix.platform }}"
+          output-dir: ".dist/${{ matrix.platform }}"
           target-platform: ${{ matrix.platform }}
 
           # Install the local wheel files and the CameraLibrary package.
