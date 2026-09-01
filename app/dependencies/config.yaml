@@ -1,10 +1,9 @@
-mqtt:
-  ip: localhost
-  port: 1883
-  trigger_topic: "test/hmi/instruction"
-  image_topic: "test/image/colour_image"
-  trigger_time_topic: "test/image/trigger_time"
-  message: null
+ip: localhost
+port: 1883
+trigger_topic: "test/camera/trigger"
+image_topic: "test/camera/colour_image"
+trigger_time_topic: "test/image/trigger_time"
+message: null
 
 camera:
   camera_type: dummy
