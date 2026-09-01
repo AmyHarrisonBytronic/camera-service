@@ -38,6 +38,8 @@ jobs:
       - name: Verify project structure
         shell: bash
         run: |
+          set -euo pipefail
+
           echo "Workspace:"
           pwd
 
@@ -48,11 +50,12 @@ jobs:
           ls -la app
 
           echo "Dependencies:"
-          find app/dependencies -maxdepth 3 -type f
+          find app/dependencies -maxdepth 3 -type f -print
 
           test -f app/main.py
           test -f requirements.txt
           test -d app/dependencies
+          test -f app/dependencies/config.yaml
 
       - name: Build application
         uses: espressif/python-binary-action@master
@@ -72,11 +75,38 @@ jobs:
               ]
             }
 
-      - name: Display build output
+      - name: Add editable config and logs folder
         shell: bash
         run: |
-          echo "Generated files:"
-          find "./dist/${{ matrix.platform }}" -maxdepth 3 -type f
+          set -euo pipefail
+
+          output_dir="./dist/${{ matrix.platform }}"
+
+          # Copy the config beside the executable.
+          # Users can edit this file after extracting the ZIP.
+          cp app/dependencies/config.yaml "$output_dir/config.yaml"
+
+          # Create a visible logs directory.
+          # .gitkeep ensures ZIP preserves the otherwise-empty directory.
+          mkdir -p "$output_dir/logs"
+          touch "$output_dir/logs/.gitkeep"
+
+          echo "Final release contents:"
+          find "$output_dir" -maxdepth 3 -print
+
+      - name: Verify build output
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          output_dir="./dist/${{ matrix.platform }}"
+
+          test -d "$output_dir"
+          test -f "$output_dir/config.yaml"
+          test -d "$output_dir/logs"
+
+          file_count="$(find "$output_dir" -type f | wc -l)"
+          test "$file_count" -gt 1
 
       - name: Upload platform artifact
         uses: actions/upload-artifact@v4
@@ -99,21 +129,37 @@ jobs:
       - name: Create ZIP files
         shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p release-upload
 
           for platform_dir in release-files/camera-service-*; do
+            if [ ! -d "$platform_dir" ]; then
+              continue
+            fi
+
             platform="${platform_dir#release-files/camera-service-}"
 
-            if [ -d "$platform_dir" ]; then
-              (
-                cd "$platform_dir"
-                zip -r "../../release-upload/camera-service-${platform}.zip" .
-              )
-            fi
+            (
+              cd "$platform_dir"
+              zip -r "../../release-upload/camera-service-${platform}.zip" .
+            )
           done
 
           echo "Release files:"
           ls -lh release-upload
+
+          test -n "$(find release-upload -name '*.zip' -print -quit)"
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd release-upload
+          sha256sum *.zip > SHA256SUMS
+
+          cat SHA256SUMS
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -123,6 +169,6 @@ jobs:
           generate_release_notes: true
           files: |
             release-upload/*.zip
+            release-upload/SHA256SUMS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
