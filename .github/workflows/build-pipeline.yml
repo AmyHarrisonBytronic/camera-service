@@ -30,41 +30,69 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      # Your wheel filename appears to be cp310, so Python 3.10
-      # is used for compatibility.
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Build binary
+      - name: Verify project structure
+        shell: bash
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          echo "Repository files:"
+          ls -la
+
+          echo "App files:"
+          ls -la app
+
+          echo "Dependency files:"
+          find app/dependencies -maxdepth 3 -type f
+
+          if [ ! -f "app/main.py" ]; then
+            echo "ERROR: app/main.py was not found"
+            exit 1
+          fi
+
+          if [ ! -d "app/dependencies" ]; then
+            echo "ERROR: app/dependencies was not found"
+            exit 1
+          fi
+
+      - name: Build application
         uses: espressif/python-binary-action@master
         with:
-          scripts: ".app/main.py"
+          # Entry point
+          scripts: "app/main.py"
 
-          output-dir: ".dist/${{ matrix.platform }}"
+          # Build output
+          output-dir: "./dist/${{ matrix.platform }}"
+
+          # Target platform
           target-platform: ${{ matrix.platform }}
 
-          # Install the local wheel files and the CameraLibrary package.
+          # Install project dependencies and local wheel files.
           install-deps-command: >-
-            uv pip install -r ./requirements.txt
+            uv pip install
+            -r requirements.txt
+            -e .
+            ./app/dependencies/*.whl
 
-          # Make sure the YAML configuration files and Python package
-          # resources are included in the generated binary.
+          # Include the CameraLibrary package and YAML configuration files.
           include-data-dirs: |
             {
               "*": [
-                ".dependencies",
-                ".dependencies/CameraLibrary"
+                "./app/dependencies/CameraLibrary"
               ]
             }
+      - name: Display build output
+        shell: bash
+        run: |
+          echo "Generated files:"
+          find "./dist/${{ matrix.platform }}" -maxdepth 3 -type f
 
-          # Replace this with an argument that your application accepts.
-          test-command-args: "--help"
-
-      - name: Upload binary
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.platform }}
+          name: camera-service-${{ matrix.platform }}
           path: "./dist/${{ matrix.platform }}"
           if-no-files-found: error
