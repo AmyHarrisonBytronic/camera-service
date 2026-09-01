@@ -1,0 +1,72 @@
+name: Build production binary
+
+on:
+  push:
+    branches:
+      - prod
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-amd64
+            runner: windows-latest
+
+          - platform: linux-amd64
+            runner: ubuntu-latest
+
+          - platform: macos-arm64
+            runner: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Your wheel filename appears to be cp310, so Python 3.10
+      # is used for compatibility.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Build binary
+        uses: espressif/python-binary-action@master
+        with:
+          scripts: "main.py"
+
+          output-dir: "./dist/${{ matrix.platform }}"
+          target-platform: ${{ matrix.platform }}
+
+          # Install the local wheel files and the CameraLibrary package.
+          install-deps-command: >-
+            uv pip install
+            ./dependencies/*.whl
+            -e ./dependencies
+
+          # Make sure the YAML configuration files and Python package
+          # resources are included in the generated binary.
+          include-data-dirs: |
+            {
+              "*": [
+                "./dependencies",
+                "./dependencies/CameraLibrary"
+              ]
+            }
+
+          # Replace this with an argument that your application accepts.
+          test-command-args: "--help"
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.platform }}
+          path: "./dist/${{ matrix.platform }}"
+          if-no-files-found: error
