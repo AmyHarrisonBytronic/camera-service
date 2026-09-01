@@ -64,7 +64,6 @@ jobs:
           install-deps-command: >-
             uv pip install
             -r requirements.txt
-            ./app/dependencies/*.whl
 
           include-data-dirs: |
             {
