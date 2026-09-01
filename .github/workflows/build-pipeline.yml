@@ -40,7 +40,7 @@ jobs:
       - name: Build binary
         uses: espressif/python-binary-action@master
         with:
-          scripts: "main.py"
+          scripts: "./app/main.py"
 
           output-dir: "./dist/${{ matrix.platform }}"
           target-platform: ${{ matrix.platform }}
