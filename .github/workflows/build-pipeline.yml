@@ -40,22 +40,22 @@ jobs:
       - name: Build binary
         uses: espressif/python-binary-action@master
         with:
-          scripts: "./app/main.py"
+          scripts: ".app/main.py"
 
           output-dir: "./dist/${{ matrix.platform }}"
           target-platform: ${{ matrix.platform }}
 
           # Install the local wheel files and the CameraLibrary package.
           install-deps-command: >-
-            uv pip install -r ./requirements.txt
+            uv pip install -r .requirements.txt
 
           # Make sure the YAML configuration files and Python package
           # resources are included in the generated binary.
           include-data-dirs: |
             {
               "*": [
-                "./dependencies",
-                "./dependencies/CameraLibrary"
+                ".dependencies",
+                ".dependencies/CameraLibrary"
               ]
             }
 
