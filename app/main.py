@@ -1,126 +1,230 @@
-import cv2
-from Dependencies import loadConfig
+import logging
+import os
 import time
-import threading
+import argparse
+import signal
+from sys import getsizeof
 from queue import Empty, Queue
+from threading import Event, Thread
 import numpy as np
+from pathlib import Path
+import base64
 
+from dependencies import loadConfig
+from dependencies.CameraLibrary.cameras import Camera
+from dependencies.CameraLibrary.hardware_trigger import CameraLossError
+from dependencies.mqtt_functions import start_subscribe_thread
+from dependencies.data_functions import encode_date_time_to_bytes, encode_image_to_bytes
+from dependencies.archive_functions import archive_image
 from mqtt_client import MQTTClient, MQTTConfig
-from Dependencies.CameraLibrary.Cameras import Camera
-from Dependencies.CameraLibrary.PylonCamera import PylonCamera
-#
-IP = loadConfig.return_config_value("ip")
-PORT = loadConfig.return_config_value("port")
-TRIGGER_TOPIC = loadConfig.return_config_value("trigger_topic")
-IMAGE_TOPIC = loadConfig.return_config_value("image_topic")
-TRIGGER_TIME_TOPIC = loadConfig.return_config_value("trigger_time_topic")
-MESSAGE = loadConfig.return_config_value("message")
-CAMERA_TYPE = loadConfig.return_config_value("camera_type")
 
-def set_camera_class(camera_type: str):
+def require(config: dict, key: str):
+    """Return a required top-level config value, or exit describing what is missing.
+
+    Args:
+        config: the loaded configuration mapping.
+        key: the top-level key the service cannot start without.
+    Returns:
+        the value stored under `key`.
+    Raises:
+        SystemExit: when `key` is absent, naming both the key and the file.
+    """
+    if key not in config:
+        raise SystemExit(f"Missing required config key '{key}' in {loadConfig.config_path()}")
+    return config[key]
+
+
+def set_camera_class(camera_type: str, config:dict):
     if not camera_type:
         raise ValueError("Camera type cannot be empty.")
     
     if camera_type == "opencv":
         camera = Camera()
+    elif camera_type == "dummy":
+        from dependencies.CameraLibrary.cameras_dummy import DummyCamera
+        camera = DummyCamera(require(config, "dummy_location"), require(config, "file_type"))
     elif camera_type == "pylon":
+        from dependencies.CameraLibrary.cameras_pylon import PylonCamera
         camera = PylonCamera()
+    elif camera_type == "gige":
+        from dependencies.CameraLibrary.cameras_gige import GigeCamera
+        camera = GigeCamera()
+    elif camera_type == "flir":
+        from dependencies.CameraLibrary.cameras_flir import FlirCamera
+        camera = FlirCamera()
+    elif camera_type == "ljs":
+        from dependencies.CameraLibrary.cameras_ljs import LJSCamera
+        camera = LJSCamera()
     else:
         raise ValueError(f"Unsupported camera type: {camera_type}")
     
     camera.connect_to_camera()
     return camera
 
-def subscribe_listener(ip: str, port: int, trigger_topic: str, result_queue: Queue, stop_event: threading.Event):
-    config = MQTTConfig(host=IP, port=PORT)
-    client = MQTTClient(config)
-    client.connect()
-
-    def on_message(topic: str, payload: str) -> None:
-        # Handler signature used by mqtt_client.MQTTClient.subscribe
-        try:
-            decoded = payload
-        except Exception:
-            decoded = payload
-        print("Capture request received:", topic)
-        result_queue.put(decoded)
-
-    client.subscribe(trigger_topic, on_message)
-
-def encode_image_to_bytes(image: np.ndarray) -> bytes:
-    # Encode the image as JPEG and return the bytes
-    if image is None:
-        raise ValueError("Input image is None.")
-    if not isinstance(image, np.ndarray):
-        raise ValueError("Input image must be a numpy array.")
-    
-    success, encoded_image = cv2.imencode('.jpg', image)
-    if not success:
-        raise RuntimeError("Failed to encode image to JPEG format.")
-    return encoded_image.tobytes()
-
-def encode_date_time_to_bytes() -> bytes:
-    date_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    return date_time.encode("utf-8")
-
-def start_subscribe_thread(ip: str, port: int, topic: str, queue: Queue, stop_event: threading.Event) -> threading.Thread:
-    thread = threading.Thread(
-        target=subscribe_listener,
-        args=(ip, port, topic, queue, stop_event),
+def start_frame_thread(
+        queue: Queue,
+        camera: Camera,
+        stop_event: Event,
+        ) -> Thread:
+    # Do not pass the wrapper as `camera=` — wait_for_frame expects the
+    # vendor handle (self.cam). Omitting it lets Pylon/FLIR use self.cam.
+    thread = Thread(
+        target=camera.wait_for_frame,
+        args=(queue, stop_event),
         daemon=True,
     )
     thread.start()
     return thread
 
-def main():
-    camera = set_camera_class(CAMERA_TYPE)
+def main(config_path: str | None = None) -> int:
+    loadConfig.set_config_path(config_path)
+    mqtt_config = loadConfig.return_config_value("mqtt")
+    camera_config = loadConfig.return_config_value("camera")
+    archive_config = loadConfig.return_config_value("archiving")
 
-    config = MQTTConfig(host=IP, port=PORT)
+    logging_file = f'./logs/{require(camera_config, "camera_type")}_worker{time.strftime("%Y%m%d")}.log'
+
+    os.makedirs(os.path.dirname(logging_file), exist_ok=True)
+    if not os.path.exists(logging_file):
+        with open(logging_file, "w") as file:
+            file.write("")
+
+    logging.basicConfig(
+        filename=logging_file,
+        level=logging.INFO,
+        format='%(asctime)s - [PID %(process)d] - %(levelname)s - %(message)s',
+        force=True,
+        filemode='a'
+    )
+
+    camera = set_camera_class(require(camera_config, "camera_type"), camera_config)
+    config = MQTTConfig(host=require(mqtt_config, "ip"), port=require(mqtt_config, "port"))
     client = MQTTClient(config)
     client.connect()
 
-    event_queue = Queue()
-    stop_event = threading.Event()
-    subscribe_thread = start_subscribe_thread(IP, PORT, TRIGGER_TOPIC, event_queue, stop_event)
+    # Latest-only queue: prevents long latency spikes from stale trigger backlog.
+    event_queue = Queue(maxsize=1)
+    stop_event = Event()
+    exit_code = 0
 
+    def _request_shutdown(signum, _frame):
+        logging.info("Received signal %s; requesting shutdown.", signum)
+        stop_event.set()
+
+    signal.signal(signal.SIGINT, _request_shutdown)
+    signal.signal(signal.SIGTERM, _request_shutdown)
+
+    # GigE: hardware | software | continuous. LJS/others: external | internal.
+    # internal/software → MQTT + capture_image; external/hardware → frame thread.
+    _trigger = str(require(camera_config, "trigger_type")).strip().lower()
+    is_external_trigger = _trigger in ("external", "hardware")
+
+    if not is_external_trigger:
+        subscribe_thread = start_subscribe_thread(
+            require(mqtt_config, "ip"),
+            require(mqtt_config, "port"),
+            require(mqtt_config, "trigger_topic"),
+            event_queue,
+            stop_event,
+        )
+    else:
+        subscribe_thread = start_frame_thread(
+            event_queue,
+            camera,
+            stop_event,
+        )
+    
+    time.sleep(0.1)
     try:
-        while True:
-            time.sleep(0.1)
-
+        while not stop_event.is_set():
+            
             try:
-                msg = event_queue.get_nowait()
+                message = event_queue.get(timeout = 1.0)
+                if not "trigger" in message:
+                    continue
+                start_time = time.time()
             except Empty:
                 continue
 
-            if msg is None:
-                print("Received invalid trigger payload; ignoring.")
+            if isinstance(message, CameraLossError):
+                logging.critical("CAMERA LOSS: %s", message)
+                print(f"CAMERA LOSS: {message}", flush=True)
+                exit_code = 1
+                break
+
+            if message is None:
+                logging.info("Received invalid trigger payload; ignoring.")
                 continue
 
             date_time = encode_date_time_to_bytes()
 
-            print("Capturing image...")
-            image = camera.capture_image()
+            logging.info("Capturing image...")
+            if not is_external_trigger:
+                try:
+                    image = camera.capture_image(timeout_ms=require(camera_config, "capture_timout"))
+                except Exception as e:
+                    logging.error("Capture failed; skipping trigger: %s", e, exc_info=True)
+                    continue
+            else:
+                if not isinstance(message, np.ndarray):
+                    logging.error("Expected image frame from queue, got %s", type(message))
+                    continue
+                image = message
+
+            if image is None:
+                logging.error("No image available to encode.")
+                continue
+            
+            if require(archive_config, "is_archived"):
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                archive_filename = f"cam{require(camera_config, 'camera_id') or '0'}_{require(camera_config, 'camera_type')}_{timestamp}"
+                archive_image(image, require(archive_config, "archive_directory"), archive_filename, require(archive_config, "archive_params"), require(camera_config, "camera_id"))
 
             image_bytes = encode_image_to_bytes(image)
-            packet = image_bytes#+date_time
+            packet = {}
+            packet["image"] = base64.b64encode(image_bytes).decode("ascii")
+            packet["date_time"] = date_time.decode("utf-8")
 
-            print("Publishing image...")
+            logging.info(f"Publishing image... of size {getsizeof(image_bytes)}")
+
             if image is not None:
                 try:
-                    client.publish(IMAGE_TOPIC, packet)
+                    client.publish(require(mqtt_config, "image_topic"), packet)
                 except Exception as e:
-                    print(f"Error publishing image: {e}")
+                    logging.error("Error publishing image: %s", e)
             else:
-                print("Failed to capture image.")
+                logging.info("Failed to capture image.")
 
-            print("Image published. Waiting for next capture request...")
+            print(f"imaging took a total of {time.time()-start_time}")
+            logging.info("Image published. Waiting for next capture request...")
 
     except KeyboardInterrupt:
-        print("Shutting down subscribe listener and exiting.")
+        logging.info("Shutting down and exiting.")
+
     finally:
         stop_event.set()
-        if subscribe_thread.is_alive():
+        # End acquisition first so a blocked GetNextImage unblocks and the
+        # frame thread can exit before we DeInit (avoids leaving the camera locked).
+        try:
+            if hasattr(camera, "stop_acquisition"):
+                camera.stop_acquisition()
+        except Exception:
+            logging.debug("stop_acquisition during shutdown failed", exc_info=True)
+
+        if subscribe_thread is not None and subscribe_thread.is_alive():
             subscribe_thread.join(timeout=2)
 
+        camera.disconnect_camera(camera.cam)
+
+    return exit_code
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Camera worker")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to YAML config file (defaults to app/dependencies/config.yaml)",
+    )
+    args = parser.parse_args()
+    raise SystemExit(main(config_path=args.config))

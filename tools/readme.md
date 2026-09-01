@@ -1,12 +1,13 @@
-# tools
+# Tools
 
-This folder is intended for development utilities and supporting scripts.
+Reserved for development utilities and supporting scripts — environment setup,
+log collection, diagnostics. Run them from the repository root so imports and
+relative paths resolve consistently.
 
-## Purpose
+This directory is currently empty. Environment setup lives in `app/setup.py`:
 
-Use `tools/` for helper scripts, diagnostics, and other utilities that support development and maintenance of the Example Camera Worker.
+```bash
+python app/setup.py
+```
 
-## Current status
-
-- No tool scripts are currently defined in this folder.
-- Create scripts here for tasks such as environment setup, log collection, or automated checks.
+That creates `.venv/` at the repository root and installs `requirements.txt`.

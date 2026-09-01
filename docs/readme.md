@@ -1,13 +1,9 @@
-# docs
+# Documentation
 
-This folder is reserved for project documentation.
+Service documentation is in the repository [README](../Readme.md): setup,
+camera types, configuration, and running CI locally.
 
-## Purpose
+Use this folder for design notes, MQTT topic conventions, and per-camera
+deployment guidance.
 
-Use `docs/` to store design notes, architecture diagrams, integration instructions, and reference material for the Example Camera Worker.
-
-## Suggestions
-
-- Document MQTT topic conventions and payload expectations.
-- Describe supported camera implementations and environment requirements.
-- Add operational guidance for deployment and debugging.
+The project licence is in `LICENSE`.

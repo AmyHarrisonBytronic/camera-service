@@ -1,10 +1,5 @@
-import pytest
+"""Smoke test: proves the suite is wired up and collected."""
+
 
 def test_dummy():
     assert True
-
-def main():
-    test_dummy()
-
-if __name__ == "__main__":
-    pytest.main()
